@@ -1,8 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, ViewStyle } from 'react-native'; // Importei ViewStyle
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
-const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
+// 1. A SOLUÇÃO QUE VOCÊ PROPÔS (CORRETA)
+interface CustomBottomTabBarProps extends BottomTabBarProps {
+  style?: ViewStyle; // Usando ViewStyle para ser mais específico que 'any'
+}
+
+// 2. USE A NOVA INTERFACE AQUI
+const TabBar: React.FC<CustomBottomTabBarProps> = ({ state, descriptors, navigation, style }) => {
   const [animations] = React.useState(
     state.routes.map(() => new Animated.Value(1))
   );
@@ -23,7 +29,8 @@ const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation })
   };
 
   return (
-    <View style={styles.navigationContainer}>
+    // 3. APLIQUE O 'STYLE' AQUI (como antes)
+    <View style={[styles.navigationContainer, style]}>
       <View style={styles.navigation}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -74,6 +81,7 @@ const TabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation })
   );
 };
 
+// ... (seus styles continuam os mesmos)
 const styles = StyleSheet.create({
   navigationContainer: {
     position: 'absolute',

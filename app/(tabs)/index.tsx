@@ -1,26 +1,76 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Dimensions, Platform, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useFocusEffect, useNavigation } from 'expo-router';
 
 const { width, height } = Dimensions.get('window');
 
 const AnimatedWebView = () => {
-  // WebView não funciona na web, apenas mobile
-  if (Platform.OS === 'web') {
-    return (
-      <View style={styles.webWarning}>
-        <Text style={styles.warningText}>⚠️ WebView com Anime.js</Text>
-        <Text style={styles.warningSubtext}>
-          Este componente funciona apenas em iOS e Android.
-        </Text>
-        <Text style={styles.warningSubtext}>
-          Teste no emulador ou dispositivo físico!
-        </Text>
-      </View>
-    );
-  }
+  const [isAnimationFinished, setIsAnimationFinished] = useState(false);
+  const navigation = useNavigation();
 
-  const htmlContent = `
+  // 1. Hook para esconder/mostrar a TabBar
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[useFocusEffect] Tela Home FOCADA. Estado da animação:', isAnimationFinished); // <-- DEBUG
+      
+      const parentNavigation = navigation.getParent();
+
+      if (!parentNavigation) {
+        console.error('[useFocusEffect] ERRO: Não foi possível encontrar o parentNavigation.'); // <-- DEBUG
+        return;
+      }
+      
+      // Esconder a TabBar SE a animação ainda não terminou
+      if (!isAnimationFinished) {
+        console.log('[useFocusEffect] Escondendo a TabBar...'); // <-- DEBUG
+        parentNavigation.setOptions({ 
+          // --- MUDANÇA PRINCIPAL ---
+          // Em vez de 'tabBarDisplay', usamos 'tabBarStyle'
+          tabBarStyle: { display: 'none' },
+          // -----------------------
+        });
+      }
+
+      // Função de "limpeza": re-exibir a TabBar ao sair da tela
+      return () => {
+        console.log('[useFocusEffect] Saindo da tela Home, mostrando TabBar.'); // <-- DEBUG
+        parentNavigation.setOptions({
+          tabBarStyle: { display: 'flex' }, // <-- MUDANÇA
+        });
+      };
+    }, [isAnimationFinished, navigation]) 
+  );
+
+  // 2. Função para "ouvir" mensagens vindas do WebView
+  const handleMessage = (event) => {
+    const message = event.nativeEvent.data;
+    
+    // DEBUG: Logar TUDO que vem do WebView
+    console.log('[handleMessage] Mensagem recebida do WebView:', message); 
+    
+    if (message === 'animationFinished') {
+      console.log('[handleMessage] Mensagem de "animationFinished" processada!'); // <-- DEBUG
+      setIsAnimationFinished(true); // Atualiza o estado
+      
+      // Manda MOSTRAR a TabBar
+      console.log('[handleMessage] Mostrando a TabBar agora...'); // <-- DEBUG
+      navigation.getParent()?.setOptions({ 
+        tabBarStyle: { display: 'flex' }, // <-- MUDANÇA
+      });
+    }
+
+    if (message.startsWith('WEBVIEW_LOG:')) {
+      console.log(message); // Log de depuração do WebView
+    }
+  };
+
+  // ... (seu código 'if (Platform.OS === 'web')' continua aqui)
+  if (Platform.OS === 'web') {
+// ...
+  }
+
+  const htmlContent = `
     <!DOCTYPE html>
     <html lang="pt-BR">
     <head>
@@ -211,8 +261,8 @@ body {
 /* Git Graph Container - TOTALMENTE RESPONSIVO */
 .graph-container {
   position: absolute;
-  left: 10%; /* Centralizado horizontalmente */
-  top: 10%; /* Centralizado verticalmente */
+  left: -2%; /* Centralizado horizontalmente */
+  top: 12%; /* Centralizado verticalmente */
   transform: translate(-50%, -50%);
   padding: clamp(15px, 4vw, 20px);
   opacity: 0;
@@ -350,323 +400,302 @@ body {
 
         <!-- Git Graph -->
         <div class="graph-container" id="graphContainer">
-          <div class="graph-title">Git Flow Diagram</div>
           <div class="mermaid" id="mermaidDiagram"></div>
         </div>
       </div>
 
       <script>
-        try {
-          // Inicializar Mermaid ANTES de tudo
-          mermaid.initialize({ 
-            startOnLoad: false,
-            theme: 'dark',
-            themeVariables: {
-              darkMode: true,
-              primaryColor: '#7c3aed',
-              primaryTextColor: '#ffffff',
-              primaryBorderColor: '#7c3aed',
-              lineColor: '#3b82f6',
-              secondaryColor: '#3b82f6',
-              tertiaryColor: '#10b981',
-              background: 'transparent',           // ← MUDANÇA: transparente
-              mainBkg: 'transparent',              // ← MUDANÇA: transparente
-              secondBkg: 'transparent',            // ← MUDANÇA: transparente
-              border1: '#30363d',
-              border2: '#30363d',
-              git0: '#7c3aed',
-              git1: '#3b82f6',
-              git2: '#10b981',
-              git3: '#f59e0b',
-              gitInv0: '#ffffff',
-              gitInv1: '#ffffff',
-              gitInv2: '#ffffff',
-              gitBranchLabel0: '#ffffff',
-              gitBranchLabel1: '#ffffff',
-              gitBranchLabel2: '#ffffff',
-              commitLabelColor: '#ffffff',
-              commitLabelBackground: '#161b22',
-              commitLabelFontSize: '14px',
-              tagLabelColor: '#ffffff',
-              tagLabelBackground: '#7c3aed',
-              tagLabelBorder: '#7c3aed',
-              tagLabelFontSize: '12px'
-            },
-            gitGraph: {
-              showBranches: true,
-              showCommitLabel: true,
-              mainBranchName: 'main',
-              mainBranchOrder: 0,
-              rotateCommitLabel: false,           // ← MUDANÇA: false para melhor legibilidade
-              arrowMarkerAbsolute: false
-            }
+          // Função helper para enviar logs para o React Native
+  function postLog(message) {
+    if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+      window.ReactNativeWebView.postMessage('WEBVIEW_LOG: [WebView] ' + message);
+    }
+  }
+
+  try {
+    postLog('Script iniciado.');
+
+    // Inicializar Mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        primaryColor: '#7c3aed',
+        primaryTextColor: '#ffffff',
+        primaryBorderColor: '#7c3aed',
+        lineColor: '#3b82f6',
+        secondaryColor: '#3b82f6',
+        tertiaryColor: '#10b981',
+        background: 'transparent',
+        mainBkg: 'transparent',
+        secondBkg: 'transparent',
+        border1: '#30363d',
+        border2: '#30363d',
+        git0: '#7c3aed',
+        git1: '#3b82f6',
+        git2: '#10b981',
+        git3: '#f59e0b',
+        gitInv0: '#ffffff',
+        gitInv1: '#ffffff',
+        gitInv2: '#ffffff',
+        gitBranchLabel0: '#ffffff',
+        gitBranchLabel1: '#ffffff',
+        gitBranchLabel2: '#ffffff',
+        commitLabelColor: '#ffffff',
+        commitLabelBackground: '#161b22',
+        commitLabelFontSize: '14px',
+        tagLabelColor: '#ffffff',
+        tagLabelBackground: '#7c3aed',
+        tagLabelBorder: '#7c3aed',
+        tagLabelFontSize: '12px'
+      },
+      gitGraph: {
+        showBranches: true,
+        showCommitLabel: true,
+        mainBranchName: 'main',
+        mainBranchOrder: 0,
+        rotateCommitLabel: false,
+        arrowMarkerAbsolute: false
+      }
+    });
+
+    const mermaidCode = \`%%{init: {'theme':'dark', 'gitGraph': {'rotateCommitLabel': false}} }%%
+      gitGraph TB:
+        commit id: "Init"
+        commit id: "Setup"
+        branch develop
+        commit id: "Dev v1"
+        branch feature
+        commit id: "Feature A"
+        commit id: "Feature B"
+        checkout develop
+        merge feature
+        commit id: "Tests"
+        checkout main
+        merge develop tag: "v1.0"
+        checkout develop
+        commit id: "Fixes"
+        checkout main
+        merge develop tag: "v1.1"\`;
+
+    postLog('Mermaid inicializado.');
+
+    // Criar grid
+    const gridContainer = document.getElementById('gridContainer');
+    for (let i = 0; i < 96; i++) {
+      const item = document.createElement('div');
+      item.className = 'grid-item';
+      gridContainer.appendChild(item);
+    }
+
+    // Criar cards flutuantes
+    const introContainer = document.getElementById('introContainer');
+    for (let i = 0; i < 3; i++) {
+      const card = document.createElement('div');
+      card.className = 'floating-card';
+      card.style.width = '120px';
+      card.style.height = '80px';
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      card.appendChild(header);
+
+      for (let j = 0; j < 3; j++) {
+        const line = document.createElement('div');
+        line.className = 'card-line';
+        line.style.width = (60 + Math.random() * 40) + '%';
+        card.appendChild(line);
+      }
+
+      introContainer.appendChild(card);
+    }
+
+    // Criar círculos do background
+    const bgContainer = document.getElementById('bgContainer');
+    for (let i = 0; i < 5; i++) {
+      const circle = document.createElement('div');
+      circle.className = 'bg-circle';
+      const size = 200 + Math.random() * 200;
+      circle.style.width = size + 'px';
+      circle.style.height = size + 'px';
+      circle.style.background = i % 2 === 0
+        ? 'radial-gradient(circle, rgba(124, 58, 237, 0.15), transparent)'
+        : 'radial-gradient(circle, rgba(59, 130, 246, 0.15), transparent)';
+      bgContainer.appendChild(circle);
+    }
+
+    // Animação inicial
+    anime({
+      targets: '.grid-item',
+      opacity: [0, 1],
+      scale: [0.8, 1],
+      duration: 800,
+      delay: anime.stagger(10, { start: 200 }),
+      easing: 'easeOutQuad'
+    });
+
+    setTimeout(() => {
+      const items = document.querySelectorAll('.grid-item');
+      const randomIndexes = [];
+      while (randomIndexes.length < 12) {
+        const r = Math.floor(Math.random() * items.length);
+        if (!randomIndexes.includes(r)) randomIndexes.push(r);
+      }
+      randomIndexes.forEach(i => items[i].classList.add('active'));
+
+      anime({
+        targets: '.grid-item.active',
+        scale: [1, 1.1, 1],
+        duration: 600,
+        delay: anime.stagger(50),
+        easing: 'easeOutQuad'
+      });
+    }, 1000);
+
+    anime({
+      targets: '#logo',
+      opacity: [0, 1],
+      translateY: [-30, 0],
+      duration: 800,
+      delay: 400,
+      easing: 'easeOutQuad'
+    });
+
+    anime({
+      targets: '#subtitle',
+      opacity: [0, 1],
+      translateY: [-20, 0],
+      duration: 800,
+      delay: 600,
+      easing: 'easeOutQuad'
+    });
+
+    anime({
+      targets: '.floating-card',
+      opacity: [0, 1],
+      scale: [0.9, 1],
+      translateX: () => [anime.random(-400, 400), anime.random(-200, 200)],
+      translateY: () => [anime.random(-400, 400), anime.random(-200, 200)],
+      rotate: () => anime.random(-15, 15),
+      duration: 1000,
+      delay: anime.stagger(200, { start: 800 }),
+      easing: 'easeOutExpo'
+    });
+
+    // Transição final
+    setTimeout(() => {
+      postLog('Timeout de 3.5s (transição) iniciado.');
+
+      anime({
+        targets: '#introContainer',
+        opacity: [1, 0],
+        duration: 800,
+        easing: 'easeOutQuad',
+        complete: () => {
+          document.getElementById('introContainer').style.display = 'none';
+          document.getElementById('bgContainer').style.display = 'block';
+
+          anime({
+            targets: '.bg-grid',
+            opacity: [0, 1],
+            duration: 1000,
+            easing: 'easeOutQuad'
           });
 
-          // Definir o diagrama Mermaid
-          const mermaidCode = \`%%{init: {\'theme':'dark', 'gitGraph': {'rotateCommitLabel': false}} }%%
-          gitGraph TB:
-            commit id: "Init"
-            commit id: "Setup"
-            branch develop
-            commit id: "Dev v1"
-            branch feature
-            commit id: "Feature A"
-            commit id: "Feature B"
-            checkout develop
-            merge feature
-            commit id: "Tests"
-            checkout main
-            merge develop tag: "v1.0"
-            checkout develop
-            commit id: "Fixes"
-            checkout main
-            merge develop tag: "v1.1"\`;
+          const circles = document.querySelectorAll('.bg-circle');
+          circles.forEach(circle => {
+            const x = anime.random(0, window.innerWidth - 300);
+            const y = anime.random(0, window.innerHeight - 300);
+            circle.style.left = x + 'px';
+            circle.style.top = y + 'px';
+          });
 
-          console.log('Mermaid inicializado');
-
-          // Criar grid de fundo
-          const gridContainer = document.getElementById('gridContainer');
-          for (let i = 0; i < 96; i++) {
-            const item = document.createElement('div');
-            item.className = 'grid-item';
-            gridContainer.appendChild(item);
-          }
-
-          // Criar cards flutuantes
-          const introContainer = document.getElementById('introContainer');
-          for (let i = 0; i < 3; i++) {
-            const card = document.createElement('div');
-            card.className = 'floating-card';
-            card.style.width = '120px';
-            card.style.height = '80px';
-            
-            const header = document.createElement('div');
-            header.className = 'card-header';
-            card.appendChild(header);
-            
-            for (let j = 0; j < 3; j++) {
-              const line = document.createElement('div');
-              line.className = 'card-line';
-              line.style.width = (60 + Math.random() * 40) + '%';
-              card.appendChild(line);
-            }
-            
-            introContainer.appendChild(card);
-          }
-
-          // Criar círculos animados para o background
-          const bgContainer = document.getElementById('bgContainer');
-          for (let i = 0; i < 5; i++) {
-            const circle = document.createElement('div');
-            circle.className = 'bg-circle';
-            const size = 200 + Math.random() * 200;
-            circle.style.width = size + 'px';
-            circle.style.height = size + 'px';
-            
-            if (i % 2 === 0) {
-              circle.style.background = 'radial-gradient(circle, rgba(124, 58, 237, 0.15), transparent)';
-            } else {
-              circle.style.background = 'radial-gradient(circle, rgba(59, 130, 246, 0.15), transparent)';
-            }
-            
-            bgContainer.appendChild(circle);
-          }
-
-          // ANIMAÇÃO DE INTRO (3 segundos)
-          
-          // Animação do grid aparecendo
           anime({
-            targets: '.grid-item',
+            targets: '.bg-circle',
             opacity: [0, 1],
             scale: [0.8, 1],
-            duration: 800,
-            delay: anime.stagger(10, {start: 200}),
+            duration: 1500,
+            delay: anime.stagger(150),
             easing: 'easeOutQuad'
           });
 
-          // Alguns itens do grid ficam destacados
-          setTimeout(function() {
-            const items = document.querySelectorAll('.grid-item');
-            const randomIndexes = [];
-            while(randomIndexes.length < 12) {
-              const r = Math.floor(Math.random() * items.length);
-              if(randomIndexes.indexOf(r) === -1) randomIndexes.push(r);
-            }
-            
-            randomIndexes.forEach(function(index) {
-              items[index].classList.add('active');
+          anime({
+            targets: '.bg-circle',
+            translateX: () => anime.random(-100, 100),
+            translateY: () => anime.random(-100, 100),
+            duration: () => anime.random(8000, 12000),
+            easing: 'easeInOutSine',
+            direction: 'alternate',
+            loop: true
+          });
+
+          setTimeout(() => {
+            postLog('Timeout de 0.5s (conteúdo principal) iniciado.');
+            document.getElementById('mainContent').style.display = 'block';
+
+            const mermaidElement = document.getElementById('mermaidDiagram');
+            mermaid
+              .render('mermaidGraph', mermaidCode)
+              .then(result => {
+                mermaidElement.innerHTML = result.svg;
+                postLog('Mermaid renderizado com sucesso!');
+              })
+              .catch(error => {
+                postLog('Erro ao renderizar Mermaid: ' + error.message);
+                mermaidElement.innerHTML = '<p style="color:#ff6b6b;text-align:center;">Erro ao carregar diagrama</p>';
+              });
+
+            anime({
+              targets: '#graphContainer',
+              opacity: [0, 1],
+              scale: [0.9, 1],
+              duration: 1000,
+              easing: 'easeOutExpo'
             });
 
             anime({
-              targets: '.grid-item.active',
-              scale: [1, 1.1, 1],
+              targets: '.side-btn',
+              opacity: [0, 1],
+              translateX: [100, 0],
               duration: 600,
-              delay: anime.stagger(50),
-              easing: 'easeOutQuad'
-            });
-          }, 1000);
-
-          // Animar logo
-          anime({
-            targets: '#logo',
-            opacity: [0, 1],
-            translateY: [-30, 0],
-            duration: 800,
-            delay: 400,
-            easing: 'easeOutQuad'
-          });
-
-          // Animar subtitle
-          anime({
-            targets: '#subtitle',
-            opacity: [0, 1],
-            translateY: [-20, 0],
-            duration: 800,
-            delay: 600,
-            easing: 'easeOutQuad'
-          });
-
-          // Animar cards flutuantes
-          anime({
-            targets: '.floating-card',
-            opacity: [0, 1],
-            scale: [0.9, 1],
-            translateX: function() {
-              return [anime.random(-400, 400), anime.random(-200, 200)];
-            },
-            translateY: function() {
-              return [anime.random(-400, 400), anime.random(-200, 200)];
-            },
-            rotate: function() {
-              return anime.random(-15, 15);
-            },
-            duration: 1000,
-            delay: anime.stagger(200, {start: 800}),
-            easing: 'easeOutExpo'
-          });
-
-          // TRANSIÇÃO PARA BACKGROUND PERMANENTE (após 3.5 segundos)
-          setTimeout(function() {
-            // Fade out da intro
-            anime({
-              targets: '#introContainer',
-              opacity: [1, 0],
-              duration: 800,
-              easing: 'easeOutQuad',
-              complete: function() {
-                document.getElementById('introContainer').style.display = 'none';
-                
-                // Mostrar background permanente
-                document.getElementById('bgContainer').style.display = 'block';
-                
-                // Fade in do grid
-                anime({
-                  targets: '.bg-grid',
-                  opacity: [0, 1],
-                  duration: 1000,
-                  easing: 'easeOutQuad'
-                });
-
-                // Posicionar e animar círculos
-                const circles = document.querySelectorAll('.bg-circle');
-                circles.forEach(function(circle, i) {
-                  const x = anime.random(0, window.innerWidth - 300);
-                  const y = anime.random(0, window.innerHeight - 300);
-                  circle.style.left = x + 'px';
-                  circle.style.top = y + 'px';
-                });
-
-                anime({
-                  targets: '.bg-circle',
-                  opacity: [0, 1],
-                  scale: [0.8, 1],
-                  duration: 1500,
-                  delay: anime.stagger(150),
-                  easing: 'easeOutQuad'
-                });
-
-                // Animação contínua dos círculos
-                anime({
-                  targets: '.bg-circle',
-                  translateX: function() {
-                    return anime.random(-100, 100);
-                  },
-                  translateY: function() {
-                    return anime.random(-100, 100);
-                  },
-                  duration: function() {
-                    return anime.random(8000, 12000);
-                  },
-                  easing: 'easeInOutSine',
-                  direction: 'alternate',
-                  loop: true
-                });
-
-                // Mostrar conteúdo principal após transição
-                setTimeout(function() {
-                  document.getElementById('mainContent').style.display = 'block';
-                  
-                  // Renderizar Mermaid diagram
-                  const mermaidElement = document.getElementById('mermaidDiagram');
-                  
-                  mermaid.render('mermaidGraph', mermaidCode).then(function(result) {
-                    mermaidElement.innerHTML = result.svg;
-                    console.log('Mermaid renderizado com sucesso!');
-                  }).catch(function(error) {
-                    console.error('Erro ao renderizar Mermaid:', error);
-                    mermaidElement.innerHTML = '<p style="color: #ff6b6b; text-align: center;">Erro ao carregar diagrama</p>';
-                  });
-                  
-                  // Animar Git Graph
-                  anime({
-                    targets: '#graphContainer',
-                    opacity: [0, 1],
-                    scale: [0.9, 1],
-                    duration: 1000,
-                    easing: 'easeOutExpo'
-                  });
-
-                  // Animar botões laterais
-                  anime({
-                    targets: '.side-btn',
-                    opacity: [0, 1],
-                    translateX: [100, 0],
-                    duration: 600,
-                    delay: anime.stagger(100, {start: 300}),
-                    easing: 'easeOutExpo'
-                  });
-
-                  // Adicionar interatividade aos botões
-                  const buttons = document.querySelectorAll('.side-btn');
-                  buttons.forEach(function(btn) {
-                    btn.addEventListener('click', function() {
-                      // Remove active de todos
-                      buttons.forEach(function(b) {
-                        b.classList.remove('active');
-                      });
-                      // Adiciona active no clicado
-                      this.classList.add('active');
-                      
-                      // Animação de clique
-                      anime({
-                        targets: this,
-                        scale: [1, 1.2, 1],
-                        duration: 300,
-                        easing: 'easeOutExpo'
-                      });
-
-                      // Log para debug
-                      console.log('Botão clicado:', this.getAttribute('data-btn'));
-                    });
-                  });
-                }, 500);
+              delay: anime.stagger(100, { start: 300 }),
+              easing: 'easeOutExpo',
+              complete: () => {
+                postLog('Animação dos botões completa.');
+                if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+                  postLog('Enviando mensagem "animationFinished" para o React Native...');
+                  window.ReactNativeWebView.postMessage('animationFinished');
+                } else {
+                  postLog('ERRO: window.ReactNativeWebView.postMessage não está disponível.');
+                }
               }
             });
-          }, 3500);
-
-        } catch (error) {
-          console.error('Erro:', error);
+            const buttons = document.querySelectorAll('.side-btn');
+            buttons.forEach(btn => {
+              btn.addEventListener('click', function() {
+                buttons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                anime({
+                  targets: this,
+                  scale: [1, 1.2, 1],
+                  duration: 300,
+                  easing: 'easeOutExpo'
+                });
+                console.log('Botão clicado:', this.getAttribute('data-btn'));
+              });
+            });
+          }, 500);
         }
+      });
+    }, 3500);
+
+  } catch (error) {
+    console.error('Erro no WebView:', error.message);
+    if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+      window.ReactNativeWebView.postMessage('ERRO: ' + error.message);
+    }
+  }
       </script>
     </body>
     </html>
@@ -684,6 +713,7 @@ body {
         domStorageEnabled={true}
         allowFileAccess={true}
         allowUniversalAccessFromFileURLs={true}
+        onMessage={handleMessage}
       />
     </View>
   );

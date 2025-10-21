@@ -4,6 +4,9 @@ import TabBar from "../components/TabBar"; // Ajuste o caminho conforme sua estr
 export default function TabsLayout() {
   return (
     <Tabs
+      // ADICIONE ESTA LINHA:
+      initialRouteName="index" 
+      // --------------------
       tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
@@ -11,16 +14,16 @@ export default function TabsLayout() {
     >
       {/* 1. HELP */}
       <Tabs.Screen 
-        name="help/index" // MUDANÇA: Corresponde ao arquivo help/index.tsx
+        name="help/index" 
         options={{ 
           title: "Help",
-          href: "/help" // O href (URL) continua o mesmo
+          href: "/help"
         }} 
       />
 
-      {/* 2. HOME */}
+      {/* 2. HOME (Definida como inicial pelo initialRouteName) */}
       <Tabs.Screen 
-        name="index" // Este estava correto (index.tsx)
+        name="index" 
         options={{ 
           title: "Home",
           href: "/"
@@ -29,19 +32,20 @@ export default function TabsLayout() {
 
       {/* 3. CODEX */}
       <Tabs.Screen 
-        name="codex/index" // MUDANÇA: Corresponde ao arquivo codex/index.tsx
+        name="codex/index" 
         options={{ 
           title: "Codex",
           href: "/codex"
         }} 
       />
 
-      {/* TELA OCULTA */}
+      {/* 4. VISUALIZAÇÕES (Oculta ou visível) */}
       <Tabs.Screen 
-        name="visualizacoes/index" // MUDANÇA: Corresponde ao arquivo visualizacoes/index.tsx
+        name="visualizacoes/index" 
         options={{ 
           title: "Visualizações",
-          href: null // Oculto da TabBar
+          href: "/visualizacoes" // Deixe assim para manter visível
+          // href: null // Use isto para ocultar
         }} 
       />
     </Tabs>
