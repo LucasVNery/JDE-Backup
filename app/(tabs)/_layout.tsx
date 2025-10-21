@@ -1,53 +1,59 @@
 import { Tabs } from "expo-router";
-import TabBar from "../components/TabBar"; // Ajuste o caminho conforme sua estrutura
+import TabBar from "../components/TabBar";
 
 export default function TabsLayout() {
-  return (
-    <Tabs
-      // ADICIONE ESTA LINHA:
-      initialRouteName="index" 
-      // --------------------
-      tabBar={(props) => <TabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      {/* 1. HELP */}
-      <Tabs.Screen 
-        name="help/index" 
-        options={{ 
-          title: "Help",
-          href: "/help"
-        }} 
-      />
+  return (
+    <Tabs
+      initialRouteName="login/index"
+      tabBar={(props) => <TabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      {/* LOGIN - Rota inicial */}
+      <Tabs.Screen 
+        name="login/index" 
+        options={{ 
+          title: "Login",
+          href: "/login"
+        }} 
+      />
 
-      {/* 2. HOME (Definida como inicial pelo initialRouteName) */}
-      <Tabs.Screen 
-        name="index" 
-        options={{ 
-          title: "Home",
-          href: "/"
-        }} 
-      />
+      {/* HOME */}
+      <Tabs.Screen 
+        name="index" 
+        options={{ 
+          title: "Home",
+          href: "/"
+        }} 
+      />
 
-      {/* 3. CODEX */}
-      <Tabs.Screen 
-        name="codex/index" 
-        options={{ 
-          title: "Codex",
-          href: "/codex"
-        }} 
-      />
+      {/* HELP */}
+      <Tabs.Screen 
+        name="help/index" 
+        options={{ 
+          title: "Help",
+          href: "/help"
+        }} 
+      />
 
-      {/* 4. VISUALIZAÇÕES (Oculta ou visível) */}
-      <Tabs.Screen 
-        name="visualizacoes/index" 
-        options={{ 
-          title: "Visualizações",
-          href: "/visualizacoes" // Deixe assim para manter visível
-          // href: null // Use isto para ocultar
-        }} 
-      />
-    </Tabs>
-  );
+      {/* CODEX */}
+      <Tabs.Screen 
+        name="codex/index" 
+        options={{ 
+          title: "Codex",
+          href: "/codex"
+        }} 
+      />
+
+      {/* VISUALIZAÇÕES */}
+      <Tabs.Screen 
+        name="visualizacoes/index" 
+        options={{ 
+          title: "Visualizações",
+          href: "/visualizacoes"
+        }} 
+      />
+    </Tabs>
+  );
 }
